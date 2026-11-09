@@ -1,0 +1,12 @@
+name: Idea or request
+description: Something Tally Mic could do, or do better.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like?
+      description: And what would it help you with?
+      placeholder: A way to see which app is using the microphone right now.
+    validations:
+      required: true

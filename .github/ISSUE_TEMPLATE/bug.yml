@@ -1,0 +1,34 @@
+name: Something isn't working
+description: Tally Mic did something wrong, or didn't do something it should.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: And what did you expect instead?
+      placeholder: I plugged in my headset, but Tally Mic kept using the MacBook microphone.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How can it be made to happen again?
+      description: Steps, if you know them. "It happens sometimes" is fine too.
+      placeholder: |
+        1. Turn on Automatic Switching
+        2. Unplug the monitor
+        3. ...
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: |
+        In Tally Mic, right-click the menu bar icon > Settings > General > **Copy Diagnostics**, then paste here. It lists your audio devices and displays, Tally Mic's settings and its recent log, and helps a lot.
+        This page is public, so look it over first: device names often include your name (iPhones and AirPods are usually named after their owner), and you can remove anything you'd rather not share.
+      render: text
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else?
+      description: Screenshots help. Drag them in here.
