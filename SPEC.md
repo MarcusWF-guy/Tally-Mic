@@ -68,7 +68,7 @@ tally-mic/
     Support/    Log, Diagnostics
   Tests/TallyMicTests/   icons, config, diagnostics, device list, setups, auto switching, shortcuts,
                          monitor volume, panel layout and placement
-  scripts/  build.sh  install.sh  make-cert.sh
+  scripts/  build.sh  install.sh  make-cert.sh  release.sh
 ```
 
 ## 5. UI
@@ -303,9 +303,9 @@ Setups are checked in array order. The one with `"trigger": null` must be last.
 
 ## 11. Build, install, test
 
-- `scripts/build.sh`: `swift build -c release`, assemble `build/Tally Mic.app`, sign with "Tally Local".
+- `scripts/build.sh`: `swift build -c release`, assemble `build/Tally Mic.app`, sign with "Tally Local". The build number (`CFBundleVersion`) is the commit count plus 55, the builds made before the repo went public with a fresh history, so it keeps going up (1.0 is build 50).
 - `scripts/install.sh`: build, quit the running copy, replace `/Applications/Tally Mic.app`, relaunch.
-- `scripts/release.sh` (Milestone 4): publishes a release teammates download. The version is `CFBundleShortVersionString` in `Resources/Info.plist`, bumped in a PR like any change (1.0 is the first); the build number is still the commit count. Run on an up-to-date, clean `main`, it refuses a version that's already released, builds, zips with `ditto` (which keeps the signature; about 0.5 MB), unzips a copy to check the signature, and creates GitHub release `v<version>` with the zip and install notes. The zip is always named `Tally-Mic.zip`, so `releases/latest/download/Tally-Mic.zip`, the README's download button, always gets the newest release (1.0 was first uploaded as `Tally-Mic-1.0.zip` and renamed). Settings > General shows the version with a "Releases on GitHub…" button.
+- `scripts/release.sh` (Milestone 4): publishes a release teammates download. The version is `CFBundleShortVersionString` in `Resources/Info.plist`, bumped in a PR like any change (1.0 is the first); the build number comes from `build.sh`. Run on an up-to-date, clean `main`, it refuses a version that's already released, builds, zips with `ditto` (which keeps the signature; about 0.5 MB), unzips a copy to check the signature, and creates GitHub release `v<version>` with the zip and install notes. The zip is always named `Tally-Mic.zip`, so `releases/latest/download/Tally-Mic.zip`, the README's download button, always gets the newest release. Settings > General shows the version with a "Releases on GitHub…" button.
 - `swift test`: device icons, config, diagnostics, panel layout and placement; AutoSwitcher from Milestone 3. `TALLY_SNAPSHOT_DIR=/some/folder swift test` also saves PNGs of the panel, for checking layout without opening the app (the glass doesn't draw offscreen).
 - All building and testing happens in a **local** Claude Code session on the Mac. Cloud sessions run on Linux and can't build Mac apps or see audio devices.
 - **The SDK stamp.** SwiftPM's new build system passes the SDK to the final link as `--sysroot`, which doesn't tell the linker the SDK's version, so it stamped the binary with the deployment target instead (`sdk 14.0`). macOS 27 then treats Tally Mic as an old app and gives it the pre-Liquid Glass look: a grey Settings window, older menus and controls. `Package.swift` passes `-isysroot` to the link so the real version is stamped. Check with `otool -l "/Applications/Tally Mic.app/Contents/MacOS/TallyMic" | grep -A4 LC_BUILD_VERSION`: `sdk` should match `xcrun --show-sdk-version`, not 14.0. Tally Cam is built the same way and likely has the same problem.

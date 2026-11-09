@@ -20,7 +20,8 @@ cp "$bin_dir/TallyMic" "$app/Contents/MacOS/TallyMic"
 cp Resources/Info.plist "$app/Contents/Info.plist"
 
 # The build number is the commit count, so Copy Diagnostics and the log show which build is running.
-build_number="$(git rev-list --count HEAD 2>/dev/null || echo 0)"
+# Plus 55, the builds made before this repo went public, so the numbers keep going up.
+build_number="$(( $(git rev-list --count HEAD 2>/dev/null || echo 0) + 55 ))"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $build_number" "$app/Contents/Info.plist"
 
 /usr/bin/codesign --force --sign "$name" "$app"
