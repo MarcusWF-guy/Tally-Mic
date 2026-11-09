@@ -20,7 +20,7 @@ Pick a mic in one click, mute it from anywhere, and let your Mac switch to the r
 
 ## What it does
 
-macOS has a menu bar menu for picking your speakers, but choosing a microphone means a trip to System Settings. Tally Mic adds the missing menu, and looks like it's always been there.
+macOS hides your microphones behind Option-click on the Sound icon, and switches to whatever you plugged in last, whether you want it or not. Tally Mic gives your mics a menu of their own that looks like it's always been there, and picks the right one by itself.
 
 - **Pick a mic in one click.** The same layout as the Sound menu: input volume, your microphones, and a shortcut to Sound Settings.
 - **Hide the clutter.** Zoom and Teams install virtual audio devices you'll never pick. Hide them, or give your mics shorter names.
