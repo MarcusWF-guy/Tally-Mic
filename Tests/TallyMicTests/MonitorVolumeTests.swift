@@ -3,15 +3,27 @@ import Testing
 
 @Suite("Monitor volume")
 struct MonitorVolumeTests {
-    /// 32 steps (twice macOS's 16), snapping to the nearest step first, and stopping at the ends.
-    @Test func stepsInThirtySeconds() {
-        #expect(MonitorVolume(level: 0.5).pressing(.up).level == 17.0 / 32)
-        #expect(MonitorVolume(level: 0.5).pressing(.down).level == 15.0 / 32)
-        #expect(MonitorVolume(level: 0.51).pressing(.up).level == 17.0 / 32)
+    /// 64 steps (four times macOS's 16), snapping to the nearest step first, and stopping at the ends.
+    @Test func stepsInSixtyFourths() {
+        #expect(MonitorVolume(level: 0.5).pressing(.up).level == 33.0 / 64)
+        #expect(MonitorVolume(level: 0.5).pressing(.down).level == 31.0 / 64)
+        #expect(MonitorVolume(level: 0.505).pressing(.up).level == 33.0 / 64)
         #expect(MonitorVolume(level: 1).pressing(.up).level == 1)
         #expect(MonitorVolume(level: 0).pressing(.down).level == 0)
-        // A monitor at 13 of 100 when it's found: the next step up is 5/32, which it gets as 16.
-        #expect(MonitorVolume(level: 0.13).pressing(.up).ddcValue(max: 100) == 16)
+        // A monitor at 13 of 100 when it's found: the next step up is 9/64, which it gets as 14.
+        #expect(MonitorVolume(level: 0.13).pressing(.up).ddcValue(max: 100) == 14)
+    }
+
+    /// On a monitor that goes from 0 to 100, every press changes what the monitor gets.
+    @Test func everyPressCountsOnAHundredLevelMonitor() {
+        var volume = MonitorVolume(level: 0)
+        var values = [volume.ddcValue(max: 100)]
+        for _ in 0..<64 {
+            volume = volume.pressing(.up)
+            values.append(volume.ddcValue(max: 100))
+        }
+        #expect(Set(values).count == 65)
+        #expect(values.last == 100)
     }
 
     /// ⇧⌥ steps by the monitor's own smallest step, often 1 of 100.
@@ -25,15 +37,15 @@ struct MonitorVolumeTests {
         let muted = MonitorVolume(level: 0.5).pressing(.mute)
         #expect(muted == MonitorVolume(level: 0.5, muted: true))
         #expect(muted.pressing(.mute) == MonitorVolume(level: 0.5))
-        #expect(muted.pressing(.up) == MonitorVolume(level: 17.0 / 32))
-        #expect(muted.pressing(.down) == MonitorVolume(level: 15.0 / 32))
+        #expect(muted.pressing(.up) == MonitorVolume(level: 33.0 / 64))
+        #expect(muted.pressing(.down) == MonitorVolume(level: 31.0 / 64))
     }
 
     @Test func whatTheMonitorAndBubbleGet() {
         #expect(MonitorVolume(level: 0.5).ddcValue(max: 100) == 50)
         #expect(MonitorVolume(level: 0.5, muted: true).ddcValue(max: 100) == 0)
         #expect(MonitorVolume(level: 0.5).litSegments == 8)
-        #expect(MonitorVolume(level: 17.0 / 32).litSegments == 8.5)
+        #expect(MonitorVolume(level: 33.0 / 64).litSegments == 8.25)
         #expect(MonitorVolume(level: 0.5, muted: true).litSegments == 0)
         #expect(MonitorVolume(level: 0.5).symbol == "speaker.wave.2.fill")
         #expect(MonitorVolume(level: 0.1).symbol == "speaker.wave.1.fill")

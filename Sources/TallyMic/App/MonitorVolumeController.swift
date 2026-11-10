@@ -159,9 +159,11 @@ final class MonitorVolumeController {
             return true
         }
         if press.key == .mute && press.isRepeat { return true }
-        // ⇧⌥: the monitor's own smallest step (often 1 of 100), like macOS's quarter steps.
+        // ⇧⌥: the monitor's own smallest step (often 1 of 100), like macOS's quarter steps. A monitor
+        // with fewer than 64 levels gets one per press, so no press is lost to rounding.
         let fine = modifiers.contains(.shift) && modifiers.contains(.option)
-        volume = volume.pressing(press.key, steps: fine ? Double(maxValue) : MonitorVolume.steps)
+        let steps = fine ? Double(maxValue) : min(MonitorVolume.steps, Double(maxValue))
+        volume = volume.pressing(press.key, steps: steps)
         hud.show(volume)
         send(volume.ddcValue(max: maxValue))
         return true

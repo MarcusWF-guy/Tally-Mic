@@ -57,7 +57,7 @@ struct VolumeHUDView: View {
 }
 
 /// Sixteen segments with rounded ends at the far left and right, like the real bubble's bar.
-/// With 32 steps, every other step leaves a segment half lit.
+/// With 64 steps, each step lights a quarter of a segment.
 private struct SegmentBar: View {
     let lit: Double
 
