@@ -1,8 +1,8 @@
 import Foundation
 
 /// A monitor's volume as the volume keys change it (SPEC 7.7), with macOS's rules but finer:
-/// 32 steps rather than 16 (Marcus found 16 too coarse for his monitor), and with ⇧⌥ held, steps as
-/// small as the monitor's own; volume up or down also unmutes; the mute key toggles.
+/// 64 steps rather than 16 (Marcus found 16, then 32, too coarse for his monitor), and with ⇧⌥ held,
+/// steps as small as the monitor's own; volume up or down also unmutes; the mute key toggles.
 struct MonitorVolume: Equatable, Sendable {
     /// 0 to 1.
     var level: Double
@@ -12,7 +12,7 @@ struct MonitorVolume: Equatable, Sendable {
         case up, down, mute
     }
 
-    static let steps = 32.0
+    static let steps = 64.0
     /// The bubble's bar, as in macOS's.
     static let segments = 16.0
 
