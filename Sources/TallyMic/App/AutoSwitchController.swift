@@ -11,10 +11,14 @@ final class AutoSwitchController {
     private var switcher = AutoSwitcher()
     private var settleTask: Task<Void, Never>?
     private var wakeObserver: NSObjectProtocol?
+    /// Apps that switched the input as they started using the mic. Once none of them is using it,
+    /// Tally Mic decides again (SPEC 6.2).
+    private var waitingFor: Set<String> = []
 
-    /// An input change is sorted by who made it a moment after it arrives, because when a device
-    /// connects, macOS can announce the new input before the new device (SPEC 6.2).
-    private static let classifyDelay: Duration = .milliseconds(400)
+    /// An input change is sorted by who made it a moment after it arrives, because what explains it
+    /// can be announced just after it: a new device when one connects, or an app starting to use
+    /// the mic, up to about 2 seconds later in Marcus's log (SPEC 6.2).
+    private static let classifyDelay: Duration = .seconds(2)
 
     init(model: AppModel, audio: AudioSystem, config: ConfigStore, displays: DisplayMonitor, lid: LidMonitor) {
         self.model = model
@@ -25,7 +29,8 @@ final class AutoSwitchController {
 
         audio.onTopologyChange = { [weak self] in self?.topologyChanged() }
         audio.onInputChange = { [weak self] uid in self?.inputChanged(to: uid) }
-        audio.onOutputChange.append { [weak self] in self?.somethingChanged() }
+        audio.onOutputChange.append { [weak self] in self?.outputChanged() }
+        audio.onRecordingChange = { [weak self] started, now in self?.recordingChanged(started: started, now: now) }
         displays.onChange = { [weak self] in self?.topologyChanged() }
         lid.onChange = { [weak self] closed in
             self?.model.lidClosed = closed
@@ -56,6 +61,7 @@ final class AutoSwitchController {
         config.preferredOrderEnabled = on
         config.saveOrLog()
         model.preferredOrderEnabled = on
+        waitingFor = []
         Log.info("Automatic switching turned \(on ? "on" : "off")" + (reason.map { ": \($0)" } ?? ""))
         if on { decide() }
     }
@@ -81,6 +87,18 @@ final class AutoSwitchController {
         settleThenDecide()
     }
 
+    private func outputChanged() {
+        switcher.outputChanged(at: .now)
+        settleThenDecide()
+    }
+
+    private func recordingChanged(started: [String], now: [String]) {
+        if !started.isEmpty { switcher.appsStartedRecording(started, at: .now) }
+        guard !waitingFor.isEmpty, waitingFor.isDisjoint(with: now) else { return }
+        Log.info("Auto: \(waitingFor.sorted().joined(separator: ", ")) done with the mic; deciding again once things settle")
+        somethingChanged()
+    }
+
     private func inputChanged(to uid: String?) {
         let time = Date()
         Task { @MainActor [weak self] in
@@ -96,8 +114,13 @@ final class AutoSwitchController {
         case .own:
             break
         case .macOS:
-            Log.info("Auto: macOS switched to \(name) as something connected or disconnected; deciding again once things settle")
+            Log.info("Auto: macOS switched to \(name) as devices or the sound output changed; deciding again once things settle")
             settleThenDecide()
+        case .app(let apps):
+            // Switching back now could cut the app off mid-sentence, so wait until it's done.
+            Log.info("Auto: \(apps.joined(separator: ", ")) switched to \(name) as it started using the mic; deciding again when it's done")
+            waitingFor.formUnion(apps)
+            if waitingFor.isDisjoint(with: model.recordingApps) { recordingChanged(started: [], now: model.recordingApps) }
         case .manual:
             setEnabled(false, reason: "\(name) picked outside Tally Mic")
         }
@@ -121,6 +144,11 @@ final class AutoSwitchController {
 
     private func decide() {
         guard model.preferredOrderEnabled else { return }
+        // An app that switched the input as it started using the mic keeps it until it's done.
+        if !waitingFor.isEmpty {
+            guard waitingFor.isDisjoint(with: model.recordingApps) else { return }
+            waitingFor = []
+        }
         let setup = model.activeSetup
         let decision = AutoSwitcher.decide(
             setup: setup, known: model.knownDevices, connected: model.inputs, lidClosed: model.lidClosed,

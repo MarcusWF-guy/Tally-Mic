@@ -15,6 +15,8 @@ final class AudioSystem {
     /// The sound output changed. A headset's mic follows its headphones (SPEC 6.2), and the volume
     /// keys follow a monitor (SPEC 7.7).
     var onOutputChange: [() -> Void] = []
+    /// Which apps just started using the mic, and which are using it now.
+    var onRecordingChange: ((_ started: [String], _ now: [String]) -> Void)?
 
     private var systemListeners: [PropertyListener] = []
     /// Per input: its name, and whether any app is using it.
@@ -87,7 +89,9 @@ final class AudioSystem {
         } else {
             Log.info("Microphone in use by \(apps.joined(separator: ", "))")
         }
+        let started = apps.filter { !model.recordingApps.contains($0) }
         model.recordingApps = apps
+        onRecordingChange?(started, apps)
     }
 
     // MARK: Changes from the panel
