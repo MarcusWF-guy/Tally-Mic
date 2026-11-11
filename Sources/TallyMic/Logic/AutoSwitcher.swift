@@ -6,12 +6,25 @@ struct AutoSwitcher: Sendable {
     /// SPEC 6.2: Tally Mic's own switch arrives as an input change within this long.
     static let ownSwitchWindow: TimeInterval = 1
     /// SPEC 6.2: an input change this soon after a device or display came or went is macOS's doing.
-    static let macOSWindow: TimeInterval = 2
+    /// macOS can switch again a few seconds after a device connects (3 seconds when docking, in
+    /// Marcus's log), so this is generous: nobody picks a mic in System Settings that fast.
+    static let macOSWindow: TimeInterval = 10
+    /// SPEC 6.2: an input change this close to the sound output changing, before or after, is macOS's
+    /// doing. When the monitor sleeps, its speakers go away and macOS picks a new input too.
+    static let outputWindow: TimeInterval = 2
+    /// SPEC 6.2: an input change this close to an app starting to use the mic, before or after, is
+    /// that app's doing. Some apps, a dictation app for one, set the Mac's mic as they start.
+    static let appWindow: TimeInterval = 2.5
+    /// System Settings' input level meter uses the mic while the Sound pane is open. It doesn't
+    /// change the input; a pick made there is a person's.
+    static let notApps: Set<String> = ["com.apple.Sound-Settings.extension", "com.apple.systempreferences"]
     /// SPEC 6.2: wait until nothing has happened for this long, then decide once.
     static let settleTime: TimeInterval = 1.5
 
     private var expectedSwitch: (uid: String, at: Date)?
     private var lastTopologyChange = Date.distantPast
+    private var lastOutputChange = Date.distantPast
+    private var lastAppStart: (apps: [String], at: Date)?
     private(set) var lastEvent = Date.distantPast
 
     // MARK: Picking
@@ -47,8 +60,21 @@ struct AutoSwitcher: Sendable {
         lastEvent = time
     }
 
-    /// Anything else that calls for deciding again: the sound output, settings edited, switching
-    /// turned on.
+    /// The sound output changed. It also calls for deciding again, for headsets (see `isAvailable`).
+    mutating func outputChanged(at time: Date) {
+        lastOutputChange = time
+        lastEvent = time
+    }
+
+    /// Apps that weren't using the mic started to.
+    mutating func appsStartedRecording(_ apps: [String], at time: Date) {
+        let apps = apps.filter { !Self.notApps.contains($0) }
+        guard !apps.isEmpty else { return }
+        lastAppStart = (apps, time)
+    }
+
+    /// Anything else that calls for deciding again: settings edited, switching turned on, an app
+    /// done with the mic.
     mutating func somethingChanged(at time: Date) {
         lastEvent = time
     }
@@ -61,8 +87,12 @@ struct AutoSwitcher: Sendable {
     enum InputChange: Equatable, Sendable {
         /// Tally Mic's own switch.
         case own
-        /// macOS switched by itself because something connected or disconnected. Undo it.
+        /// macOS switched by itself because something connected or disconnected, or the sound
+        /// output changed. Undo it.
         case macOS
+        /// An app switched it as it started using the mic. Leave it to the app until it's done,
+        /// then undo it (SPEC 6.2).
+        case app([String])
         /// Someone picked it, in System Settings say. Automatic switching turns off (SPEC 6.2).
         case manual
     }
@@ -74,7 +104,11 @@ struct AutoSwitcher: Sendable {
             expectedSwitch = nil
             return .own
         }
-        if time.timeIntervalSince(lastTopologyChange) < Self.macOSWindow {
+        if let start = lastAppStart, abs(time.timeIntervalSince(start.at)) < Self.appWindow {
+            return .app(start.apps)
+        }
+        if time.timeIntervalSince(lastTopologyChange) < Self.macOSWindow
+            || abs(time.timeIntervalSince(lastOutputChange)) < Self.outputWindow {
             return .macOS
         }
         return .manual

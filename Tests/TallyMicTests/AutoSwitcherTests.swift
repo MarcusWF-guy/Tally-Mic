@@ -91,7 +91,45 @@ struct AutoSwitcherTests {
         var switcher = AutoSwitcher()
         switcher.topologyChanged(at: at(0))
         #expect(switcher.inputChanged(to: "airpods", at: at(0.8)) == .macOS)
-        #expect(switcher.inputChanged(to: "airpods", at: at(10)) == .manual)
+        #expect(switcher.inputChanged(to: "airpods", at: at(30)) == .manual)
+    }
+
+    /// Docking: macOS switched to a webcam as it connected, Tally Mic switched back, and macOS
+    /// switched to the webcam again 3 seconds after it connected. Still macOS.
+    @Test func macOSSwitchingAgainAFewSecondsLater() {
+        var switcher = AutoSwitcher()
+        switcher.topologyChanged(at: at(0))
+        #expect(switcher.inputChanged(to: "webcam", at: at(0)) == .macOS)
+        switcher.willSwitch(to: "usbMic", at: at(2))
+        #expect(switcher.inputChanged(to: "usbMic", at: at(2.1)) == .own)
+        #expect(switcher.inputChanged(to: "webcam", at: at(3)) == .macOS)
+    }
+
+    /// The monitor sleeps, its speakers go away, and macOS picks a new input at the same moment.
+    @Test func theSoundOutputChangingIsMacOS() {
+        var switcher = AutoSwitcher()
+        switcher.outputChanged(at: at(100))
+        #expect(switcher.inputChanged(to: "webcam", at: at(100)) == .macOS)
+        #expect(switcher.inputChanged(to: "webcam", at: at(99.5)) == .macOS)
+        #expect(switcher.inputChanged(to: "webcam", at: at(120)) == .manual)
+    }
+
+    /// A dictation app sets the Mac's mic to the one it uses as it starts, before or just after it
+    /// shows up as using the mic. That's the app, not a choice.
+    @Test func anAppSwitchingAsItStarts() {
+        var switcher = AutoSwitcher()
+        switcher.appsStartedRecording(["com.example.dictation"], at: at(201))
+        #expect(switcher.inputChanged(to: "webcam", at: at(200)) == .app(["com.example.dictation"]))
+        #expect(switcher.inputChanged(to: "webcam", at: at(202)) == .app(["com.example.dictation"]))
+        #expect(switcher.inputChanged(to: "webcam", at: at(230)) == .manual)
+    }
+
+    /// System Settings' level meter uses the mic while the Sound pane is open, so a pick made there
+    /// can look like an app starting. It's still a choice.
+    @Test func aPickInSystemSettingsIsStillAChoice() {
+        var switcher = AutoSwitcher()
+        switcher.appsStartedRecording(["com.apple.Sound-Settings.extension"], at: at(300))
+        #expect(switcher.inputChanged(to: "webcam", at: at(300.5)) == .manual)
     }
 
     /// When a device connects, macOS can announce the new input before the device list changes.
